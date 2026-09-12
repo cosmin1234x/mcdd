@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#F4BE20" />
+  <meta name="background-color" content="#F5F5F4" />
+  <meta name="application-name" content="Hayle Waste Counter" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Hayle Waste" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <title>Hayle Waste Counter</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon-v11.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-v11-192.png" />
+  <link rel="stylesheet" href="styles.css?v=17" />
+  <link rel="stylesheet" href="fresh.css?v=17" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="topbar-inner">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">M</div>
+          <div class="brand-copy">
+            <div class="brand-line">
+              <h1>Hayle Waste</h1>
+              <span class="crew-badge">CREW TOOL</span>
+              <span class="cloud-status" id="cloudStatus" data-state="offline" role="status" aria-live="polite">Cloud unavailable · local safe</span>
+            </div>
+            <p>Carwin Rise · Loggans · TR27 5DG</p>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-header-ghost install-app-btn" id="installAppBtn" type="button" hidden>Install app</button>
+          <button class="btn btn-header-primary" id="saveSheetBtn" type="button"><span class="btn-symbol">✓</span><span>Save</span></button>
+        </div>
+      </div>
+    </header>
+
+    <main class="app-main" id="mainContent">
+      <section id="homePage" class="app-page" data-page="home" aria-labelledby="homeHeading">
+      <div class="home-overview">
+      <section class="dashboard-intro">
+        <div class="intro-copy">
+          <div class="intro-kicker">HAYLE · WASTE COUNTER</div>
+          <h2 id="homeHeading" tabindex="-1">Hello, Hayle.</h2>
+          <p class="intro-lead">Your current sheet, at a glance.</p>
+          <p>Count your RAW and FULL waste, then save your sheet.</p>
+        </div>
+        <div class="shift-box">
+          <span class="field-kicker">FILTER MENU</span>
+          <label for="shiftSelect">Menu period</label>
+          <div class="select-wrap">
+            <select id="shiftSelect">
+              <option value="all">All menu</option>
+              <option value="breakfast">Breakfast</option>
+              <option value="main">Main menu</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <section class="mode-panel">
+        <div class="type-switch" aria-label="Waste type">
+          <button class="type-btn raw-type active" data-type="raw" type="button">
+            <span class="type-icon">R</span>
+            <span class="type-copy"><strong>RAW</strong><small>Buns · patties · Nugget · Select</small></span>
+            <span class="type-chevron">›</span>
+          </button>
+          <button class="type-btn full-type" data-type="full" type="button">
+            <span class="type-icon">F</span>
+            <span class="type-copy"><strong>FULL</strong><small>Burgers · wraps · finished products</small></span>
+            <span class="type-chevron">›</span>
+          </button>
+        </div>
+
+        <section class="summary-grid" aria-label="Waste totals">
+          <article class="summary-card raw-card">
+            <span class="summary-label">RAW</span>
+            <strong id="rawTotal">0</strong>
+            <small>components</small>
+          </article>
+          <article class="summary-card full-card">
+            <span class="summary-label">FULL</span>
+            <strong id="fullTotal">0</strong>
+            <small>products</small>
+          </article>
+          <article class="summary-card total-card">
+            <span class="summary-label">TOTAL</span>
+            <strong id="grandTotal">0</strong>
+            <small>all waste</small>
+          </article>
+          <article class="summary-card items-card">
+            <span class="summary-label">LINES</span>
+            <strong id="itemCount">0</strong>
+            <small>items counted</small>
+          </article>
+        </section>
+      </section>
+
+      </div>
+      <header class="section-heading"><h2>Your current count</h2><p>Tap to count. Save when your sheet is ready.</p></header>
+      <section class="counter-workspace">
+        <section class="toolbar-card">
+          <div class="search-wrap">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.35-4.35m2.35-5.65a8 8 0 1 1-16 0 8 8 0 0 1 16 0Z"/></svg>
+            <input id="searchInput" type="search" placeholder="Search waste item..." autocomplete="off" />
+          </div>
+          <div class="toolbar-actions">
+            <div class="filter-switch" aria-label="Item filter">
+              <button class="chip active" data-filter="all" type="button">All items</button>
+              <button class="chip" data-filter="counted" type="button">Counted</button>
+            </div>
+            <button class="icon-btn" id="manageItemsBtn" type="button" title="Manage items" aria-label="Manage items">⚙</button>
+          </div>
+        </section>
+
+        <nav class="category-tabs" id="categoryTabs" aria-label="Waste categories"></nav>
+
+        <section class="waste-card">
+          <div class="table-head simple-head">
+            <div>
+              <span id="tableTypeLabel">RAW COMPONENT</span>
+              <small id="visibleCount">0 shown</small>
+            </div>
+            <span>COUNT</span>
+          </div>
+          <div id="wasteList" class="waste-list"></div>
+          <div class="empty-state" id="emptyState" hidden>
+            <div class="empty-icon">⌕</div>
+            <h3>No items found</h3>
+            <p>Try a different search, waste type or category.</p>
+          </div>
+        </section>
+      </section>
+
+      <section class="notes-card">
+        <div>
+          <label for="sheetName">Crew / shift note</label>
+          <input id="sheetName" type="text" maxlength="80" placeholder="e.g. Close · Cosmin · 08/09" />
+        </div>
+        <div>
+          <label for="sheetNotes">Notes</label>
+          <textarea id="sheetNotes" rows="2" maxlength="300" placeholder="Optional notes about unusual waste..."></textarea>
+        </div>
+      </section>
+
+      <section class="bottom-actions">
+        <button class="btn btn-danger-outline clear-current-btn protected-action" id="clearBtn" type="button"><span>↺</span> <span class="clear-label">Clear current</span><span class="mini-lock" aria-hidden="true">🔒</span></button>
+        <button class="btn download-btn download-main-btn" id="downloadPaperBtn" type="button"><span class="download-icon">↓</span><span><strong>Download Paper</strong><small>PDF waste sheet</small></span></button>
+      </section>
+
+      <p class="disclaimer">Hayle waste counter · Offline-first with shared cloud datastore.</p>
+      </section>
+
+      <section id="graphicsPage" class="app-page" data-page="graphics" aria-labelledby="graphicsHeading" hidden>
+        <header class="page-heading">
+          <div><span class="page-eyebrow">THE BIGGER PICTURE</span><h2 id="graphicsHeading" tabindex="-1">Waste, day by day.</h2><p>See the pattern. Make the next day a little better.</p></div>
+          <span class="page-tag">From your saved sheets</span>
+        </header>
+        <div id="graphicsSummary" class="insights-summary"></div>
+        <section class="chart-panel" aria-labelledby="dailyChartHeading">
+          <div class="panel-heading">
+            <div><span class="page-eyebrow">DAILY COMPARISON</span><h3 id="dailyChartHeading">Your waste trend</h3><p id="chartRangeLabel"></p></div>
+            <div class="chart-controls">
+              <label for="graphicsType"><span>Waste type</span><select id="graphicsType"><option value="all">RAW + FULL</option><option value="raw">RAW only</option><option value="full">FULL only</option></select></label>
+              <label for="graphicsRange"><span>Period</span><select id="graphicsRange"><option value="7">Last 7 days</option><option value="30">Last 30 days</option></select></label>
+            </div>
+          </div>
+          <div id="dailyChart" class="daily-chart"></div>
+          <div id="graphicsEmpty" class="view-empty" hidden><span class="empty-illustration" aria-hidden="true">↗</span><h3>Your story starts with a saved sheet.</h3><p>Save a count on Home, or choose a wider period to see earlier days.</p></div>
+          <p class="data-note">Daily totals add up saved sheets. Unsaved counts are not included. Days without a saved sheet are left blank.</p>
+        </section>
+        <section class="breakdown-panel" aria-labelledby="dailyBreakdownHeading">
+          <div class="panel-heading"><div><span class="page-eyebrow">A CLOSER LOOK</span><h3 id="dailyBreakdownHeading">The daily breakdown</h3></div><span class="panel-note">Compared with the previous recorded day</span></div>
+          <div id="dailyBreakdown"></div>
+        </section>
+      </section>
+
+      <section id="historyModal" class="app-page" data-page="history" aria-labelledby="historyTitle" hidden>
+        <header class="page-heading">
+          <div><span class="page-eyebrow">YOUR WASTE RECORD</span><h2 id="historyTitle" tabindex="-1">Every shift, saved.</h2><p>Find a past sheet, revisit the counts, or download your paper.</p></div>
+          <span class="page-tag">Shared across your team</span>
+        </header>
+        <div class="history-overview">
+          <article class="insight-card"><span class="insight-label">Saved sheets</span><strong class="insight-value" id="historySheetCount">0</strong><span class="insight-caption">In your shared history</span></article>
+          <article class="insight-card"><span class="insight-label">RAW recorded</span><strong class="insight-value" id="historyRawTotal">0</strong><span class="insight-caption">Components across saved sheets</span></article>
+          <article class="insight-card"><span class="insight-label">FULL recorded</span><strong class="insight-value" id="historyFullTotal">0</strong><span class="insight-caption">Products across saved sheets</span></article>
+        </div>
+        <div class="history-toolbar">
+          <div class="search-wrap"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.35-4.35m2.35-5.65a8 8 0 1 1-16 0 8 8 0 0 1 16 0Z"/></svg><input id="historySearch" type="search" aria-label="Search saved sheets" placeholder="Search shift, notes or waste item…" /></div>
+          <label for="historyRange"><span>Show</span><select id="historyRange"><option value="all">All saved sheets</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option></select></label>
+        </div>
+        <p id="historyResults" class="history-results" role="status" aria-live="polite"></p>
+        <div id="historyList" class="history-list"></div>
+      </section>
+    </main>
+    <nav class="bottom-nav" aria-label="Main navigation">
+      <button class="nav-item active" type="button" data-page-target="home" aria-controls="homePage" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z"/></svg><span>Home</span></button>
+      <button class="nav-item" type="button" data-page-target="graphics" aria-controls="graphicsPage"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21V11h4v10M10 21V3h4v18M16 21v-7h4v7M2 21h20"/></svg><span>Graphics</span></button>
+      <button class="nav-item" type="button" data-page-target="history" aria-controls="historyModal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11a9 9 0 1 1 2.6 7M3 4v7h7M12 7v5l3 2"/></svg><span>History</span></button>
+    </nav>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <div class="modal-backdrop" id="itemsModal" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="itemsTitle">
+      <div class="modal-header">
+        <div><span class="eyebrow">CUSTOMISE HAYLE LIST</span><h2 id="itemsTitle">Manage waste items</h2></div>
+        <button class="modal-close" data-close-modal="itemsModal" type="button">×</button>
+      </div>
+      <form id="addItemForm" class="add-item-form">
+        <input id="newItemName" type="text" placeholder="Item name" required maxlength="60" />
+        <select id="newItemType" required><option value="raw">RAW component</option><option value="full">FULL product</option></select>
+        <select id="newItemCategory" required></select>
+        <select id="newItemShift" required><option value="main">Main menu</option><option value="breakfast">Breakfast</option><option value="all">All day</option></select>
+        <button class="btn btn-dark" type="submit">Add item</button>
+      </form>
+      <div class="manage-list" id="manageList"></div>
+      <div class="manager-security-row">
+        <div class="manager-security-copy">
+          <span class="manager-lock-chip">🔒 MANAGER</span>
+          <div><strong>Manager PIN</strong><small>Protects delete and reset actions on every device.</small></div>
+        </div>
+        <button class="btn btn-manager-pin" id="managePinBtn" type="button">Manage PIN</button>
+      </div>
+      <div class="modal-footer"><button class="btn btn-danger-outline protected-action" id="restoreItemsBtn" type="button">🔒 Restore default lists</button></div>
+    </section>
+  </div>
+
+  <div class="modal-backdrop sheet-complete-backdrop" id="sheetCompleteModal" hidden>
+    <section class="sheet-complete-card" role="dialog" aria-modal="true" aria-labelledby="sheetCompleteTitle">
+      <div class="complete-check" aria-hidden="true">✓</div>
+      <span class="complete-kicker">PAPER DOWNLOADED</span>
+      <h2 id="sheetCompleteTitle">Sheet complete.</h2>
+      <p>Your PDF is safe. Start a fresh waste count when you're ready.</p>
+
+      <div class="complete-summary" aria-label="Downloaded sheet totals">
+        <div><span>RAW</span><strong id="completeRawTotal">0</strong></div>
+        <div><span>FULL</span><strong id="completeFullTotal">0</strong></div>
+        <div class="complete-total"><span>TOTAL</span><strong id="completeGrandTotal">0</strong></div>
+      </div>
+
+      <div class="complete-actions">
+        <button class="btn btn-new-sheet protected-action" id="startNewSheetBtn" type="button"><span aria-hidden="true">🔒</span> Start new sheet</button>
+        <button class="btn btn-keep-sheet" id="keepCurrentSheetBtn" type="button">Keep current sheet</button>
+      </div>
+      <small>Starting a new sheet clears the active counts and notes only. Saved History and your RAW/FULL item list stay untouched.</small>
+    </section>
+  </div>
+
+  <div class="modal-backdrop manager-pin-backdrop" id="managerPinModal" hidden>
+    <section class="manager-pin-card" role="dialog" aria-modal="true" aria-labelledby="managerPinTitle">
+      <button class="manager-pin-close" id="managerPinCloseBtn" type="button" aria-label="Close">×</button>
+      <div class="manager-shield" aria-hidden="true">
+        <span>🔒</span>
+      </div>
+      <span class="manager-pin-kicker" id="managerPinKicker">MANAGER APPROVAL</span>
+      <h2 id="managerPinTitle">Enter manager PIN</h2>
+      <p id="managerPinDescription">This action changes shared waste data and needs manager approval.</p>
+
+      <div class="protected-action-card" id="managerActionCard">
+        <span>Protected action</span>
+        <strong id="managerActionName">Reset waste sheet</strong>
+      </div>
+
+      <form id="managerPinForm" autocomplete="off">
+        <label class="pin-field" id="currentPinField">
+          <span id="currentPinLabel">Manager PIN</span>
+          <input id="managerCurrentPin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="••••" aria-label="Manager PIN" />
+        </label>
+        <label class="pin-field" id="newPinField" hidden>
+          <span>New 4-digit PIN</span>
+          <input id="managerNewPin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="new-password" placeholder="••••" aria-label="New manager PIN" />
+        </label>
+        <label class="pin-field" id="confirmPinField" hidden>
+          <span>Confirm PIN</span>
+          <input id="managerConfirmPin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="new-password" placeholder="••••" aria-label="Confirm manager PIN" />
+        </label>
+        <p class="manager-pin-error" id="managerPinError" role="alert" hidden></p>
+        <div class="manager-pin-actions">
+          <button class="btn manager-cancel-btn" id="managerPinCancelBtn" type="button">Cancel</button>
+          <button class="btn manager-authorise-btn" id="managerPinSubmitBtn" type="submit">Authorise</button>
+        </div>
+      </form>
+      <small class="manager-pin-foot">The PIN is checked on the server and is not stored in the app.</small>
+    </section>
+  </div>
+
+  <section id="printSheet" class="print-sheet" aria-hidden="true">
+    <header class="print-sheet-header">
+      <div>
+        <p class="print-kicker">HAYLE · WASTE RECORD</p>
+        <h1>Waste Sheet</h1>
+        <p id="printMeta" class="print-meta"></p>
+      </div>
+      <div class="print-total-box"><span>TOTAL WASTE</span><strong id="printGrandTotal">0</strong></div>
+    </header>
+    <div class="print-columns">
+      <section class="print-category raw-print">
+        <div class="print-category-head"><h2>RAW</h2><span id="printRawTotal">0</span></div>
+        <div id="printRawList" class="print-list"></div>
+      </section>
+      <section class="print-category full-print">
+        <div class="print-category-head"><h2>FULL</h2><span id="printFullTotal">0</span></div>
+        <div id="printFullList" class="print-list"></div>
+      </section>
+    </div>
+    <section id="printNotesWrap" class="print-notes"><strong>Notes</strong><p id="printNotes"></p></section>
+  </section>
+
+  <script src="insights.js?v=17"></script>
+  <script src="app.js?v=17"></script>
+  <script src="pwa-update.js?v=17"></script>
+</body>
+</html>
