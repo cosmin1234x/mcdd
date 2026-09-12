@@ -7,6 +7,12 @@ function Fail($message) {
   exit 1
 }
 
+function Write-Utf8NoBom([string]$Path, [string]$Text) {
+  $fullPath = [System.IO.Path]::GetFullPath($Path)
+  $encoding = New-Object System.Text.UTF8Encoding($false)
+  [System.IO.File]::WriteAllText($fullPath, $Text, $encoding)
+}
+
 Write-Host ""
 Write-Host "====================================================" -ForegroundColor Yellow
 Write-Host "  Hayle Waste Counter - Android APK Builder V3" -ForegroundColor Yellow
@@ -73,18 +79,20 @@ Set-Content -Encoding ASCII ".\android\local.properties" "sdk.dir=$sdkEscaped"
 $gradlePath = ".\android\app\build.gradle"
 if (Test-Path $gradlePath) {
   $gradleText = Get-Content $gradlePath -Raw
+  $gradleText = $gradleText.TrimStart([char]0xFEFF)
   $gradleText = $gradleText -replace 'versionCode\s+\d+', 'versionCode 4'
   $gradleText = $gradleText -replace 'versionName\s+"[^"]+"', 'versionName "1.4"'
-  Set-Content -Encoding UTF8 $gradlePath $gradleText
+  Write-Utf8NoBom $gradlePath $gradleText
   Write-Host "Android versionCode set to 4 (upgrade-safe)." -ForegroundColor Green
 }
 
 $stringsPath = ".\android\app\src\main\res\values\strings.xml"
 if (Test-Path $stringsPath) {
   $strings = Get-Content $stringsPath -Raw
+  $strings = $strings.TrimStart([char]0xFEFF)
   $strings = $strings -replace '<string name="app_name">.*?</string>', '<string name="app_name">Hayle Waste Counter</string>'
   $strings = $strings -replace '<string name="title_activity_main">.*?</string>', '<string name="title_activity_main">Hayle Waste Counter</string>'
-  Set-Content -Encoding UTF8 $stringsPath $strings
+  Write-Utf8NoBom $stringsPath $strings
 }
 
 Write-Host "[4/7] Enabling automatic fresh launch + native PDF save..." -ForegroundColor Cyan
