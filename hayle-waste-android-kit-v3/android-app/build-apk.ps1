@@ -102,7 +102,8 @@ if (-not (Test-Path (Split-Path $mainActivity))) {
 }
 $nativeTemplate = Join-Path $PSScriptRoot "native\MainActivity.java"
 if (-not (Test-Path $nativeTemplate)) { Fail "native\MainActivity.java is missing." }
-Copy-Item $nativeTemplate $mainActivity -Force
+$mainText = (Get-Content $nativeTemplate -Raw).TrimStart([char]0xFEFF)
+Write-Utf8NoBom $mainActivity $mainText
 
 Write-Host "[5/7] Applying app icon..." -ForegroundColor Cyan
 $iconSource = Join-Path $PSScriptRoot "resources\icon.png"
