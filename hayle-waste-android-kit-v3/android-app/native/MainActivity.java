@@ -50,7 +50,7 @@ public class MainActivity extends BridgeActivity {
     }
 
     @Override
-    protected void onDestroy() {
+    public void onDestroy() {
         if (hayleWebView != null) hayleWebView.removeCallbacks(downloadHookInstaller);
         hayleWebView = null;
         super.onDestroy();
