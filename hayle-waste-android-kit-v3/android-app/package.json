@@ -1,0 +1,13 @@
+{
+  "name": "hayle-waste-counter-android",
+  "version": "1.4.0",
+  "private": true,
+  "description": "Android wrapper for Hayle Waste Counter",
+  "dependencies": {
+    "@capacitor/android": "latest",
+    "@capacitor/core": "latest"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "latest"
+  }
+}
