@@ -1,0 +1,16 @@
+{
+  "appId": "uk.co.hayle.wastecounter",
+  "appName": "Hayle Waste Counter",
+  "webDir": "www",
+  "server": {
+    "url": "https://haylewaster.vercel.app",
+    "cleartext": false,
+    "androidScheme": "https",
+    "allowNavigation": [
+      "haylewaster.vercel.app"
+    ]
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}
