@@ -1,6 +1,7 @@
 (() => {
   const NATIVE_QUERY = 'native';
-  let pendingNativePaperEntries = null;
+  const HISTORY_KEY = 'hayle-waste-history-v2';
+  let pendingNativePaper = null;
 
   function isNativeShell() {
     try {
@@ -58,24 +59,21 @@
     });
   }
 
-  function makeCurrentPaperFile() {
-    if (typeof getCountedEntries !== 'function' || typeof buildPdfPages !== 'function' || typeof makeSimplePDF !== 'function') {
+  function createPaperFile({ entries, label = 'Hayle Waste', notes = '', createdAt = Date.now() }) {
+    if (typeof buildPdfPages !== 'function' || typeof makeSimplePDF !== 'function') {
       throw new Error('PDF tools are not ready.');
     }
-
-    const entries = getCountedEntries();
-    if (!entries.length) {
+    const counted = (entries || []).filter(entry => Number(entry?.count) > 0);
+    if (!counted.length) {
       toast('Nothing counted yet');
       return null;
     }
 
-    const raw = entries.filter(entry => entry.type === 'raw');
-    const full = entries.filter(entry => entry.type === 'full');
+    const raw = counted.filter(entry => entry.type === 'raw');
+    const full = counted.filter(entry => entry.type === 'full');
     const rawTotal = raw.reduce((sum, entry) => sum + Number(entry.count || 0), 0);
     const fullTotal = full.reduce((sum, entry) => sum + Number(entry.count || 0), 0);
-    const date = new Date();
-    const label = document.getElementById('sheetName')?.value?.trim() || 'Hayle Waste';
-    const notes = document.getElementById('sheetNotes')?.value?.trim() || '';
+    const date = new Date(createdAt || Date.now());
 
     const pages = buildPdfPages({
       raw,
@@ -83,8 +81,8 @@
       rawTotal,
       fullTotal,
       total: rawTotal + fullTotal,
-      label,
-      notes,
+      label: label || 'Hayle Waste',
+      notes: notes || '',
       date
     });
     const bytes = makeSimplePDF(pages);
@@ -94,7 +92,35 @@
       ? new File([blob], filename, { type: 'application/pdf', lastModified: Date.now() })
       : null;
 
-    return { entries, bytes, blob, file, filename };
+    return { entries: counted, bytes, blob, file, filename };
+  }
+
+  function currentPaperFile() {
+    if (typeof getCountedEntries !== 'function') throw new Error('Waste counts are not ready.');
+    return createPaperFile({
+      entries: getCountedEntries(),
+      label: document.getElementById('sheetName')?.value?.trim() || 'Hayle Waste',
+      notes: document.getElementById('sheetNotes')?.value?.trim() || '',
+      createdAt: Date.now()
+    });
+  }
+
+  function historyPaperFile(id) {
+    let history = [];
+    try {
+      history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+    } catch (_) {}
+    const sheet = Array.isArray(history) ? history.find(item => item?.id === id) : null;
+    if (!sheet) {
+      toast('Saved sheet not found');
+      return null;
+    }
+    return createPaperFile({
+      entries: sheet.entries,
+      label: sheet.label || 'Hayle Waste',
+      notes: sheet.notes || '',
+      createdAt: sheet.createdAt || Date.now()
+    });
   }
 
   function bytesToBase64(bytes) {
@@ -112,49 +138,39 @@
     window.__haylePdfResultListenerInstalled = true;
     window.addEventListener('hayle-pdf-saved', event => {
       const detail = event.detail || {};
+      const pending = pendingNativePaper;
+      pendingNativePaper = null;
       if (detail.ok) {
         toast(detail.message || 'PDF saved');
-        const entries = pendingNativePaperEntries;
-        pendingNativePaperEntries = null;
         try {
-          if (entries && typeof showSheetComplete === 'function') {
-            setTimeout(() => showSheetComplete(entries), 250);
+          if (pending?.showRestart && pending.entries && typeof showSheetComplete === 'function') {
+            setTimeout(() => showSheetComplete(pending.entries), 250);
           }
         } catch (_) {}
       } else {
-        pendingNativePaperEntries = null;
         toast(detail.message || 'PDF save cancelled');
       }
     });
   }
 
-  async function savePaperOnAndroid() {
-    let paper;
-    try {
-      paper = makeCurrentPaperFile();
-    } catch (error) {
-      console.warn('[apk] could not create paper PDF', error);
-      toast('Could not create PDF');
-      return;
-    }
+  async function savePaperOnAndroid(paper, { showRestart = false } = {}) {
     if (!paper) return;
 
     // V3+ APKs expose AndroidPdf. This opens Android's real Save File dialog,
     // avoiding blob: downloads, which Android WebView does not reliably handle.
     if (window.AndroidPdf && typeof window.AndroidPdf.saveBase64 === 'function') {
       try {
-        pendingNativePaperEntries = paper.entries;
+        pendingNativePaper = { entries: paper.entries, showRestart };
         toast('Choose where to save PDF…');
         window.AndroidPdf.saveBase64(bytesToBase64(paper.bytes), paper.filename);
         return;
       } catch (error) {
-        pendingNativePaperEntries = null;
+        pendingNativePaper = null;
         console.warn('[apk] native PDF bridge failed; using fallback', error);
       }
     }
 
-    // Old APK fallback. Modern Android WebView may not expose navigator.share,
-    // but keeping this path lets browser/PWA installs save the same generated file.
+    // Old APK / normal browser fallback.
     if (paper.file && typeof navigator.share === 'function') {
       let canShareFile = true;
       try {
@@ -174,7 +190,9 @@
           });
           toast('PDF ready to save or share');
           try {
-            if (typeof showSheetComplete === 'function') setTimeout(() => showSheetComplete(paper.entries), 300);
+            if (showRestart && typeof showSheetComplete === 'function') {
+              setTimeout(() => showSheetComplete(paper.entries), 300);
+            }
           } catch (_) {}
           return;
         } catch (error) {
@@ -198,7 +216,9 @@
       anchor.remove();
       toast('Paper PDF downloaded');
       try {
-        if (typeof showSheetComplete === 'function') setTimeout(() => showSheetComplete(paper.entries), 450);
+        if (showRestart && typeof showSheetComplete === 'function') {
+          setTimeout(() => showSheetComplete(paper.entries), 450);
+        }
       } catch (_) {}
     } catch (error) {
       console.warn('[apk] PDF download fallback failed', error);
@@ -216,20 +236,46 @@
   function installAndroidPdfFix() {
     if (!isNativeShell()) return;
     installNativePdfResultListener();
-    const button = document.getElementById('downloadPaperBtn');
-    if (!button || button.dataset.apkPdfFixed === '1') return;
-    button.dataset.apkPdfFixed = '1';
 
-    // Capture phase runs before app.js' existing click listener. This prevents the
-    // WebView from trying the unreliable blob-download path twice.
-    button.addEventListener('click', event => {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      savePaperOnAndroid();
-    }, true);
+    const mainButton = document.getElementById('downloadPaperBtn');
+    if (mainButton && mainButton.dataset.apkPdfFixed !== '1') {
+      mainButton.dataset.apkPdfFixed = '1';
+      mainButton.addEventListener('click', event => {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        let paper = null;
+        try { paper = currentPaperFile(); }
+        catch (error) {
+          console.warn('[apk] could not create current paper PDF', error);
+          toast('Could not create PDF');
+          return;
+        }
+        savePaperOnAndroid(paper, { showRestart: true });
+      }, true);
+      const small = mainButton.querySelector('small');
+      if (small) small.textContent = window.AndroidPdf ? 'Save PDF to your phone' : 'Save or share PDF';
+    }
 
-    const small = button.querySelector('small');
-    if (small) small.textContent = window.AndroidPdf ? 'Save PDF to your phone' : 'Save or share PDF';
+    // History cards are rendered dynamically, so capture them at document level.
+    if (!document.documentElement.dataset.apkHistoryPdfFixed) {
+      document.documentElement.dataset.apkHistoryPdfFixed = '1';
+      document.addEventListener('click', event => {
+        const button = event.target.closest?.('.download-paper-history');
+        if (!button) return;
+        const id = button.closest('.history-card')?.dataset.id;
+        if (!id) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        let paper = null;
+        try { paper = historyPaperFile(id); }
+        catch (error) {
+          console.warn('[apk] could not create history paper PDF', error);
+          toast('Could not create PDF');
+          return;
+        }
+        savePaperOnAndroid(paper, { showRestart: false });
+      }, true);
+    }
   }
 
   function installUiFixes() {
@@ -281,15 +327,12 @@
     version = workerVersion(nextController);
     const [oldVersion, newVersion] = await Promise.all([previousVersion, version]);
 
-    // First installation only claims the already-fresh page; an update reloads once.
     if (!previousController || !newVersion || newVersion === oldVersion || reloadRequested) return;
     const reloadKey = `hayle-update-reloaded:${newVersion}`;
     try {
       if (sessionStorage.getItem(reloadKey)) return;
       sessionStorage.setItem(reloadKey, '1');
-    } catch (_) {
-      // The controller/version checks still prevent a loop if storage is unavailable.
-    }
+    } catch (_) {}
     reloadRequested = true;
     window.location.reload();
   });
@@ -303,9 +346,7 @@
       } else {
         registration = await workers.register('./service-worker.js', { updateViaCache: 'none' });
       }
-    } catch (_) {
-      // Offline startup keeps the existing worker and data; online/resume will retry.
-    }
+    } catch (_) {}
   }
 
   window.addEventListener('online', checkForUpdate);
