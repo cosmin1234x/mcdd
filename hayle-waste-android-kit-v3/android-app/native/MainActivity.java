@@ -1,8 +1,10 @@
 package uk.co.hayle.wastecounter;
 
-import android.app.Activity;
-import android.content.Intent;
+import android.content.ContentValues;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
+import android.provider.MediaStore;
 import android.util.Base64;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
@@ -11,14 +13,12 @@ import com.getcapacitor.BridgeActivity;
 
 import org.json.JSONObject;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.OutputStream;
 import java.util.Locale;
 
 public class MainActivity extends BridgeActivity {
-    private static final int REQUEST_SAVE_PDF = 8412;
-    private byte[] pendingPdfBytes;
-    private String pendingPdfFilename;
-
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -36,7 +36,7 @@ public class MainActivity extends BridgeActivity {
         }
     }
 
-    private void requestPdfSave(byte[] bytes, String filename) {
+    private void savePdfDirect(byte[] bytes, String filename) {
         if (bytes == null || bytes.length == 0) {
             notifyPdfResult(false, "The PDF was empty.");
             return;
@@ -46,41 +46,66 @@ public class MainActivity extends BridgeActivity {
             return;
         }
 
-        pendingPdfBytes = bytes;
-        pendingPdfFilename = safePdfFilename(filename);
+        final String safeName = safePdfFilename(filename);
 
-        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
-        intent.addCategory(Intent.CATEGORY_OPENABLE);
-        intent.setType("application/pdf");
-        intent.putExtra(Intent.EXTRA_TITLE, pendingPdfFilename);
-        startActivityForResult(intent, REQUEST_SAVE_PDF);
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                ContentValues values = new ContentValues();
+                values.put(MediaStore.Downloads.DISPLAY_NAME, safeName);
+                values.put(MediaStore.Downloads.MIME_TYPE, "application/pdf");
+                values.put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS);
+                values.put(MediaStore.Downloads.IS_PENDING, 1);
+
+                android.net.Uri uri = getContentResolver().insert(
+                        MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                        values
+                );
+                if (uri == null) throw new IllegalStateException("Could not create download file.");
+
+                try (OutputStream output = getContentResolver().openOutputStream(uri, "w")) {
+                    if (output == null) throw new IllegalStateException("Could not open download file.");
+                    output.write(bytes);
+                    output.flush();
+                } catch (Exception error) {
+                    getContentResolver().delete(uri, null, null);
+                    throw error;
+                }
+
+                values.clear();
+                values.put(MediaStore.Downloads.IS_PENDING, 0);
+                getContentResolver().update(uri, values, null, null);
+            } else {
+                File downloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+                if (!downloads.exists() && !downloads.mkdirs()) {
+                    throw new IllegalStateException("Could not open Downloads folder.");
+                }
+
+                File target = uniqueFile(downloads, safeName);
+                try (FileOutputStream output = new FileOutputStream(target)) {
+                    output.write(bytes);
+                    output.flush();
+                }
+            }
+
+            notifyPdfResult(true, safeName + " downloaded to Downloads.");
+        } catch (Exception error) {
+            notifyPdfResult(false, "Could not download the PDF.");
+        }
     }
 
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode != REQUEST_SAVE_PDF) return;
+    private File uniqueFile(File directory, String filename) {
+        File first = new File(directory, filename);
+        if (!first.exists()) return first;
 
-        if (resultCode != Activity.RESULT_OK || data == null || data.getData() == null) {
-            pendingPdfBytes = null;
-            pendingPdfFilename = null;
-            notifyPdfResult(false, "PDF save cancelled.");
-            return;
-        }
+        int dot = filename.toLowerCase(Locale.UK).endsWith(".pdf") ? filename.length() - 4 : filename.length();
+        String stem = filename.substring(0, dot);
+        String extension = dot < filename.length() ? filename.substring(dot) : ".pdf";
 
-        try (OutputStream output = getContentResolver().openOutputStream(data.getData(), "w")) {
-            if (output == null) throw new IllegalStateException("Could not open the selected file.");
-            output.write(pendingPdfBytes);
-            output.flush();
-            String savedName = pendingPdfFilename;
-            pendingPdfBytes = null;
-            pendingPdfFilename = null;
-            notifyPdfResult(true, savedName + " saved.");
-        } catch (Exception error) {
-            pendingPdfBytes = null;
-            pendingPdfFilename = null;
-            notifyPdfResult(false, "Could not save the PDF.");
+        for (int i = 2; i < 1000; i++) {
+            File candidate = new File(directory, stem + " (" + i + ")" + extension);
+            if (!candidate.exists()) return candidate;
         }
+        return new File(directory, stem + "-" + System.currentTimeMillis() + extension);
     }
 
     private String safePdfFilename(String filename) {
@@ -110,7 +135,7 @@ public class MainActivity extends BridgeActivity {
         public void saveBase64(String base64Pdf, String filename) {
             try {
                 byte[] bytes = Base64.decode(base64Pdf, Base64.DEFAULT);
-                activity.runOnUiThread(() -> activity.requestPdfSave(bytes, filename));
+                activity.runOnUiThread(() -> activity.savePdfDirect(bytes, filename));
             } catch (Exception error) {
                 activity.notifyPdfResult(false, "Could not prepare the PDF.");
             }
