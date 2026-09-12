@@ -34,7 +34,11 @@ if ($jdk21) {
   Fail "Java 21 was not found. Install it with: winget install EclipseAdoptium.Temurin.21.JDK"
 }
 
-$javaVersionText = (& java -version 2>&1 | Out-String)
+# java -version writes its normal version text to STDERR. Windows PowerShell can
+# turn that into a terminating NativeCommandError when ErrorActionPreference is
+# Stop, so run it through cmd.exe and merge STDERR there first.
+$javaVersionText = (& cmd.exe /d /c "java -version 2>&1" | Out-String)
+if ($LASTEXITCODE -ne 0) { Fail "Java could not be started." }
 if ($javaVersionText -notmatch 'version "(?<major>\d+)') { Fail "Could not determine the Java version." }
 $javaMajor = [int]$Matches['major']
 if ($javaMajor -gt 24) {
