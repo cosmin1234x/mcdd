@@ -19,21 +19,77 @@ import java.io.OutputStream;
 import java.util.Locale;
 
 public class MainActivity extends BridgeActivity {
+    private WebView hayleWebView;
+
+    private final Runnable downloadHookInstaller = new Runnable() {
+        @Override
+        public void run() {
+            if (hayleWebView == null) return;
+            installBrowserDownloadHook();
+            hayleWebView.postDelayed(this, 1500);
+        }
+    };
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
         if (getBridge() != null && getBridge().getWebView() != null) {
-            WebView webView = getBridge().getWebView();
-            webView.addJavascriptInterface(new AndroidPdfBridge(this), "AndroidPdf");
+            hayleWebView = getBridge().getWebView();
+            hayleWebView.addJavascriptInterface(new AndroidPdfBridge(this), "AndroidPdf");
+            hayleWebView.removeCallbacks(downloadHookInstaller);
+            hayleWebView.post(downloadHookInstaller);
 
             if (savedInstanceState == null) {
-                webView.post(() -> {
+                hayleWebView.post(() -> {
                     String freshUrl = "https://haylewaster.vercel.app/?native=1&native_start=" + System.currentTimeMillis();
-                    webView.loadUrl(freshUrl);
+                    hayleWebView.loadUrl(freshUrl);
                 });
             }
         }
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (hayleWebView != null) hayleWebView.removeCallbacks(downloadHookInstaller);
+        hayleWebView = null;
+        super.onDestroy();
+    }
+
+    private void installBrowserDownloadHook() {
+        if (hayleWebView == null) return;
+
+        String script = "(function(){"
+                + "if(window.__hayleNativePdfDownloadHook)return;"
+                + "if(!window.AndroidPdf||!window.HTMLAnchorElement)return;"
+                + "window.__hayleNativePdfDownloadHook=true;"
+                + "var original=HTMLAnchorElement.prototype.click;"
+                + "HTMLAnchorElement.prototype.click=function(){"
+                + "var anchor=this;"
+                + "try{"
+                + "var href=anchor.href||'';"
+                + "var name=anchor.download||'';"
+                + "if(href.indexOf('blob:')===0&&name.toLowerCase().slice(-4)==='.pdf'){"
+                + "fetch(href).then(function(r){return r.blob();}).then(function(blob){"
+                + "return new Promise(function(resolve,reject){"
+                + "var reader=new FileReader();"
+                + "reader.onloadend=function(){var result=String(reader.result||'');resolve(result.split(',')[1]||'');};"
+                + "reader.onerror=reject;reader.readAsDataURL(blob);"
+                + "});"
+                + "}).then(function(base64){"
+                + "if(!base64)throw new Error('empty pdf');"
+                + "window.AndroidPdf.saveBase64(base64,name||'Hayle-Waste-Paper.pdf');"
+                + "}).catch(function(){try{original.call(anchor);}catch(e){}});"
+                + "return;"
+                + "}"
+                + "}catch(e){}"
+                + "return original.call(anchor);"
+                + "};"
+                + "})();";
+
+        runOnUiThread(() -> {
+            if (hayleWebView != null) hayleWebView.evaluateJavascript(script, null);
+        });
     }
 
     private void savePdfDirect(byte[] bytes, String filename) {
