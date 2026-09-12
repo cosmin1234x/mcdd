@@ -1,9 +1,11 @@
 (() => {
   const NATIVE_QUERY = 'native';
+  let pendingNativePaperEntries = null;
 
   function isNativeShell() {
     try {
-      if (new URLSearchParams(window.location.search).get(NATIVE_QUERY) === '1') return true;
+      const params = new URLSearchParams(window.location.search);
+      if (params.get(NATIVE_QUERY) === '1' || params.has('native_start')) return true;
     } catch (_) {}
     try {
       return Boolean(window.Capacitor?.isNativePlatform?.());
@@ -92,7 +94,38 @@
       ? new File([blob], filename, { type: 'application/pdf', lastModified: Date.now() })
       : null;
 
-    return { entries, blob, file, filename };
+    return { entries, bytes, blob, file, filename };
+  }
+
+  function bytesToBase64(bytes) {
+    const view = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+    let binary = '';
+    const chunkSize = 0x8000;
+    for (let offset = 0; offset < view.length; offset += chunkSize) {
+      binary += String.fromCharCode(...view.subarray(offset, Math.min(offset + chunkSize, view.length)));
+    }
+    return btoa(binary);
+  }
+
+  function installNativePdfResultListener() {
+    if (window.__haylePdfResultListenerInstalled) return;
+    window.__haylePdfResultListenerInstalled = true;
+    window.addEventListener('hayle-pdf-saved', event => {
+      const detail = event.detail || {};
+      if (detail.ok) {
+        toast(detail.message || 'PDF saved');
+        const entries = pendingNativePaperEntries;
+        pendingNativePaperEntries = null;
+        try {
+          if (entries && typeof showSheetComplete === 'function') {
+            setTimeout(() => showSheetComplete(entries), 250);
+          }
+        } catch (_) {}
+      } else {
+        pendingNativePaperEntries = null;
+        toast(detail.message || 'PDF save cancelled');
+      }
+    });
   }
 
   async function savePaperOnAndroid() {
@@ -106,8 +139,22 @@
     }
     if (!paper) return;
 
-    // Android WebView can ignore blob: downloads. Prefer the Android share/save
-    // sheet when file sharing is supported, then keep browser download fallbacks.
+    // V3+ APKs expose AndroidPdf. This opens Android's real Save File dialog,
+    // avoiding blob: downloads, which Android WebView does not reliably handle.
+    if (window.AndroidPdf && typeof window.AndroidPdf.saveBase64 === 'function') {
+      try {
+        pendingNativePaperEntries = paper.entries;
+        toast('Choose where to save PDF…');
+        window.AndroidPdf.saveBase64(bytesToBase64(paper.bytes), paper.filename);
+        return;
+      } catch (error) {
+        pendingNativePaperEntries = null;
+        console.warn('[apk] native PDF bridge failed; using fallback', error);
+      }
+    }
+
+    // Old APK fallback. Modern Android WebView may not expose navigator.share,
+    // but keeping this path lets browser/PWA installs save the same generated file.
     if (paper.file && typeof navigator.share === 'function') {
       let canShareFile = true;
       try {
@@ -168,6 +215,7 @@
 
   function installAndroidPdfFix() {
     if (!isNativeShell()) return;
+    installNativePdfResultListener();
     const button = document.getElementById('downloadPaperBtn');
     if (!button || button.dataset.apkPdfFixed === '1') return;
     button.dataset.apkPdfFixed = '1';
@@ -181,7 +229,7 @@
     }, true);
 
     const small = button.querySelector('small');
-    if (small) small.textContent = 'Save or share PDF';
+    if (small) small.textContent = window.AndroidPdf ? 'Save PDF to your phone' : 'Save or share PDF';
   }
 
   function installUiFixes() {
