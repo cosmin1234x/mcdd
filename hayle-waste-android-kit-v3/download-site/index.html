@@ -4,40 +4,39 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#b71918">
-  <title>Hayle Waste Counter — Android</title>
-  <meta name="description" content="Download Hayle Waste Counter for Android.">
+  <title>Hayle Waste Counter — Android & iPhone</title>
+  <meta name="description" content="Download Hayle Waste Counter for Android or install the web app on your iPhone Home Screen.">
+  <link rel="icon" type="image/png" href="assets/app-icon.png">
   <style>
     :root{--red:#c51f1a;--red-dark:#8f1513;--yellow:#ffc72c;--cream:#f7f1e7;--ink:#28201c;--muted:#746861;--card:#fff;--line:#eadfd4;--green:#247a45}
     *{box-sizing:border-box}body{margin:0;min-height:100vh;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);background:var(--cream)}
     .top{height:8px;background:linear-gradient(90deg,var(--red),var(--red) 70%,var(--yellow) 70%)}
-    .shell{min-height:calc(100vh - 8px);display:grid;place-items:center;padding:34px 18px;position:relative;overflow:hidden}
-    .shell:before,.shell:after{content:"";position:absolute;border-radius:50%;filter:blur(1px);z-index:0}.shell:before{width:460px;height:460px;background:rgba(255,199,44,.22);top:-260px;right:-180px}.shell:after{width:420px;height:420px;background:rgba(197,31,26,.08);bottom:-270px;left:-180px}
-    .card{position:relative;z-index:1;width:min(100%,480px);background:rgba(255,255,255,.96);border:1px solid rgba(234,223,212,.9);border-radius:34px;padding:26px;box-shadow:0 28px 80px rgba(71,42,29,.16)}
+    .shell{min-height:calc(100vh - 8px);display:grid;place-items:center;padding:34px 18px;position:relative;overflow:hidden}.shell:before,.shell:after{content:"";position:absolute;border-radius:50%;z-index:0}.shell:before{width:460px;height:460px;background:rgba(255,199,44,.22);top:-260px;right:-180px}.shell:after{width:420px;height:420px;background:rgba(197,31,26,.08);bottom:-270px;left:-180px}
+    .card{position:relative;z-index:1;width:min(100%,500px);background:rgba(255,255,255,.96);border:1px solid rgba(234,223,212,.9);border-radius:34px;padding:26px;box-shadow:0 28px 80px rgba(71,42,29,.16)}
     .brand-row{display:flex;align-items:center;gap:18px;margin-bottom:22px}.icon-wrap{width:104px;height:104px;border-radius:26px;padding:4px;background:#fff;box-shadow:0 13px 28px rgba(43,28,19,.2);flex:0 0 auto}.icon-wrap img{width:100%;height:100%;display:block;border-radius:22px;object-fit:cover}
     .eyebrow{font-size:12px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:var(--red)}h1{font-size:30px;line-height:1.03;margin:5px 0 7px;letter-spacing:-.04em}.version{font-size:13px;color:var(--muted);font-weight:700}
     .hero{background:linear-gradient(145deg,var(--red),var(--red-dark));border-radius:25px;padding:21px;color:#fff;margin:10px 0 18px;box-shadow:0 15px 28px rgba(197,31,26,.2)}.hero strong{display:block;font-size:20px;margin-bottom:6px}.hero p{margin:0;color:rgba(255,255,255,.82);font-size:14px;line-height:1.5}
     .chips{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0}.chip{font-size:12px;font-weight:800;padding:8px 11px;border-radius:999px;background:#f8f3ed;border:1px solid var(--line);color:#584c45}
-    .download{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;border:0;border-radius:18px;background:var(--yellow);color:#2b211d;text-decoration:none;padding:17px 20px;font-size:16px;font-weight:950;box-shadow:0 10px 24px rgba(255,199,44,.32);transition:.16s transform,.16s box-shadow;cursor:pointer}.download:hover{transform:translateY(-2px);box-shadow:0 14px 28px rgba(255,199,44,.38)}.download:active{transform:scale(.985)}
-    .sub{margin:11px 0 0;text-align:center;font-size:12px;color:var(--muted)}.status{margin-top:18px;border-top:1px solid var(--line);padding-top:18px;display:grid;gap:11px}.row{display:flex;align-items:center;gap:11px;font-size:13px;color:#534841}.tick{width:26px;height:26px;border-radius:9px;background:#edf8f1;color:var(--green);display:grid;place-items:center;font-weight:1000;flex:0 0 auto}
-    .warning{margin-top:17px;padding:13px 14px;border-radius:15px;background:#fff7dc;border:1px solid #f4dfa0;color:#6b571d;font-size:12px;line-height:1.45}footer{text-align:center;font-size:11px;color:#9b8f87;margin-top:17px}@media(max-width:430px){.card{border-radius:28px;padding:20px}.brand-row{align-items:flex-start}.icon-wrap{width:88px;height:88px;border-radius:23px}.icon-wrap img{border-radius:19px}h1{font-size:26px}}
+    .download{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;border-radius:18px;background:var(--yellow);color:#2b211d;text-decoration:none;padding:17px 20px;font-size:16px;font-weight:950;box-shadow:0 10px 24px rgba(255,199,44,.32);transition:.16s transform,.16s box-shadow}.download:hover{transform:translateY(-2px);box-shadow:0 14px 28px rgba(255,199,44,.38)}.download:active{transform:scale(.985)}
+    .ios-install{margin-top:20px;padding-top:20px;border-top:1px solid var(--line)}.download-ios{background:#fff;color:var(--red-dark);border:2px solid var(--red);box-shadow:none}.download-ios:hover{background:#fff7f5;box-shadow:0 8px 18px rgba(197,31,26,.1)}
+    .ios-steps{margin:13px 0 0;padding-left:21px;font-size:13px;line-height:1.55;color:#534841}.ios-steps li+li{margin-top:7px}.sub{margin:11px 0 0;text-align:center;font-size:12px;color:var(--muted)}
+    .status{margin-top:18px;border-top:1px solid var(--line);padding-top:18px;display:grid;gap:11px}.row{display:flex;align-items:center;gap:11px;font-size:13px;color:#534841}.tick{width:26px;height:26px;border-radius:9px;background:#edf8f1;color:var(--green);display:grid;place-items:center;font-weight:1000;flex:0 0 auto}
+    .warning{margin-top:17px;padding:13px 14px;border-radius:15px;background:#fff7dc;border:1px solid #f4dfa0;color:#6b571d;font-size:12px;line-height:1.45}footer{text-align:center;font-size:11px;color:#9b8f87;margin-top:17px}
+    @media(max-width:430px){.card{border-radius:28px;padding:20px}.brand-row{align-items:flex-start}.icon-wrap{width:88px;height:88px;border-radius:23px}.icon-wrap img{border-radius:19px}h1{font-size:26px}}
   </style>
 </head>
 <body>
 <div class="top"></div>
-<main class="shell">
-  <section class="card">
-    <div class="brand-row">
-      <div class="icon-wrap"><img src="assets/app-icon.png" alt="Hayle Waste Counter app icon"></div>
-      <div><div class="eyebrow">Hayle • Android</div><h1>Waste Counter</h1><div class="version">Version 1.4 • Native PDF APK</div></div>
-    </div>
-    <div class="hero"><strong>Fast waste counting, now as an app.</strong><p>RAW and FULL counting, cloud sync, history, paper downloads and manager-protected resets.</p></div>
-    <div class="chips"><span class="chip">RAW + FULL</span><span class="chip">Cloud synced</span><span class="chip">Manager PIN</span><span class="chip">PDF sheets</span></div>
-    <a id="downloadBtn" class="download" href="/downloads/Hayle-Waste-Counter.apk"><span>↓</span><span>Download for Android</span></a>
-    <p class="sub">Hayle-Waste-Counter.apk</p>
-    <div class="status"><div class="row"><span class="tick">✓</span><span>Installs as a separate Android app</span></div><div class="row"><span class="tick">✓</span><span>Uses the live Hayle Waste Counter data</span></div><div class="row"><span class="tick">✓</span><span>Future website changes appear inside the app</span></div></div>
-    <div class="warning"><strong>Android:</strong> your phone may ask you to allow installs from your browser the first time because this APK is being installed directly rather than through Google Play.</div>
-    <footer>Hayle Waste Counter • Internal utility</footer>
-  </section>
-</main>
+<main class="shell"><section class="card">
+  <div class="brand-row"><div class="icon-wrap"><img src="assets/app-icon.png" alt="Hayle Waste Counter app icon"></div><div><div class="eyebrow">Hayle • Mobile</div><h1>Waste Counter</h1><div class="version">Android v1.8 • iPhone / iPad web app</div></div></div>
+  <div class="hero"><strong>Fast waste counting, now on mobile.</strong><p>RAW and FULL counting, cloud sync, history, paper PDFs and manager-protected resets.</p></div>
+  <div class="chips"><span class="chip">RAW + FULL</span><span class="chip">Cloud synced</span><span class="chip">Manager PIN</span><span class="chip">PDF sheets</span></div>
+  <a id="downloadBtn" class="download" href="/downloads/Hayle-Waste-Counter.apk" download><span>↓</span><span>Download for Android</span></a>
+  <p class="sub">Version 1.8 · PDF opens after download</p>
+  <div class="ios-install"><a class="download download-ios" href="https://haylewaster.vercel.app"><span aria-hidden="true">＋</span><span>Install on iPhone / iPad</span></a><p class="sub">Opens the live app so you can add it to your Home Screen.</p><ol class="ios-steps"><li>Open in <strong>Safari</strong>.</li><li>Tap <strong>Share</strong>, then <strong>Add to Home Screen</strong>.</li><li>Enable <strong>Open as Web App</strong> if shown, then tap <strong>Add</strong>.</li></ol></div>
+  <div class="status"><div class="row"><span class="tick">✓</span><span>Android installs as a standalone app</span></div><div class="row"><span class="tick">✓</span><span>iPhone / iPad keeps the Safari PDF experience</span></div><div class="row"><span class="tick">✓</span><span>Uses the live Hayle Waste Counter data</span></div></div>
+  <div class="warning"><strong>Android:</strong> your phone may ask you to allow installs from your browser the first time because this APK is installed directly rather than through Google Play.</div>
+  <footer>Hayle Waste Counter • Internal utility</footer>
+</section></main>
 </body>
 </html>
