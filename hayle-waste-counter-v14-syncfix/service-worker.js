@@ -1,13 +1,13 @@
 // Bump this version and the asset queries in index.html together on releases.
-const CACHE_NAME = 'hayle-waste-v17';
+const CACHE_NAME = 'hayle-waste-v18';
 const NETWORK_TIMEOUT_MS = 5000;
 const APP_SHELL = [
   './index.html',
-  './styles.css?v=17',
-  './fresh.css?v=17',
-  './insights.js?v=17',
-  './app.js?v=17',
-  './pwa-update.js?v=17',
+  './styles.css?v=18',
+  './fresh.css?v=18',
+  './insights.js?v=18',
+  './app.js?v=18',
+  './pwa-update.js?v=18',
   './manifest.webmanifest',
   './icons/icon-v11-192.png',
   './icons/icon-v11-512.png',
