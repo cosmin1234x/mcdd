@@ -128,6 +128,7 @@ let toastTimer;
 let deferredInstallPrompt = null;
 let activePage = 'home';
 let activeSheetId = null;
+let counterHold = null;
 
 // Shared cloud datastore (no user accounts).
 // Local storage remains the offline-first copy; /api/store syncs it to one shared cloud record.
@@ -221,6 +222,31 @@ function attachEvents() {
   document.querySelectorAll('[data-filter]').forEach(btn => btn.addEventListener('click', () => {
     activeFilter = btn.dataset.filter; document.querySelectorAll('[data-filter]').forEach(b => b.classList.toggle('active', b === btn)); renderList();
   }));
+
+  // Counting interaction ported from CCCS: tap for one, press and hold to keep counting.
+  // Event delegation keeps this fast even with a long product list.
+  el.wasteList.addEventListener('pointerdown', onStepPointerDown);
+  ['pointerup', 'pointercancel'].forEach(type => el.wasteList.addEventListener(type, releaseCounterHold));
+  el.wasteList.addEventListener('pointerout', event => {
+    if (counterHold && event.target.closest?.('[data-step]') === counterHold.button) releaseCounterHold();
+  });
+  el.wasteList.addEventListener('contextmenu', event => {
+    if (event.target.closest('[data-step]')) event.preventDefault();
+  });
+  el.wasteList.addEventListener('click', onStepClick);
+  el.wasteList.addEventListener('change', event => {
+    const input = event.target.closest('input[data-count]');
+    if (!input) return;
+    const id = input.closest('[data-id]')?.dataset.id;
+    if (id) setCount(id, input.value);
+  });
+  el.wasteList.addEventListener('focusin', event => {
+    if (event.target.matches('input[data-count]')) event.target.select();
+  });
+  el.wasteList.addEventListener('keydown', event => {
+    if (event.key === 'Enter' && event.target.matches('input[data-count]')) event.target.blur();
+  });
+  window.addEventListener('blur', clearCounterHold);
 
   document.getElementById('clearBtn').addEventListener('click', clearCurrent);
   document.getElementById('saveSheetBtn').addEventListener('click', saveSheet);
@@ -335,31 +361,133 @@ function renderList() {
     const count = getCount(item.id);
     const row = document.createElement('article');
     row.className = `waste-row simple-row ${count > 0 ? 'has-count' : ''} ${item.type}-row`;
+    row.dataset.id = item.id;
     row.innerHTML = `
       <div class="item-info"><div class="item-meta"><span class="category-pill">${escapeHTML(item.category)}</span><span>${shiftLabel(item.shift)}</span></div><div class="item-name">${escapeHTML(item.name)}</div></div>
       <div class="counter ${item.type === 'raw' ? 'raw-counter' : 'full-counter'}">
-        <button type="button" data-action="minus" aria-label="Subtract one">−</button>
-        <input type="number" min="0" step="1" inputmode="numeric" value="${count}" aria-label="${escapeHTML(item.name)} count" />
-        <button type="button" data-action="plus" aria-label="Add one">+</button>
+        <button type="button" data-step="-1" aria-label="Subtract one">−</button>
+        <input data-count type="number" min="0" max="99999" step="1" inputmode="numeric" value="${count}" aria-label="${escapeHTML(item.name)} count" />
+        <button type="button" data-step="1" aria-label="Add one">+</button>
       </div>`;
-    const input = row.querySelector('input');
-    row.querySelector('[data-action="minus"]').addEventListener('click', () => setCount(item.id, countNow(item.id) - 1));
-    row.querySelector('[data-action="plus"]').addEventListener('click', () => setCount(item.id, countNow(item.id) + 1));
-    input.addEventListener('change', () => setCount(item.id, input.value));
-    input.addEventListener('focus', () => input.select());
     el.wasteList.appendChild(row);
   });
   el.visibleCount.textContent = `${filtered.length} shown`;
   el.emptyState.hidden = filtered.length > 0;
 }
 
+const MAX_COUNT = 99999;
+const clampCount = value => Math.min(MAX_COUNT, Math.max(0, Math.floor(Number(value) || 0)));
+
 function countNow(id) { return Math.max(0, Number(counts[id]) || 0); }
 function getCount(id) { return countNow(id); }
 
+function updateCountRow(id) {
+  const row = el.wasteList.querySelector(`[data-id="${CSS.escape(String(id))}"]`);
+  if (!row) return;
+  const value = countNow(id);
+  const input = row.querySelector('input[data-count]');
+  if (input && document.activeElement !== input) input.value = value;
+  row.classList.toggle('has-count', value > 0);
+}
+
 function setCount(id, value) {
-  counts[id] = Math.max(0, Math.floor(Number(value) || 0));
+  counts[id] = clampCount(value);
   if (counts[id] === 0) delete counts[id];
-  saveJSON(STORAGE.COUNTS, counts); render();
+  saveJSON(STORAGE.COUNTS, counts);
+
+  // Keep fast repeated counting from rebuilding the whole list on every tap.
+  // The Counted filter is the one case where list membership can change.
+  if (activeFilter === 'counted') renderList();
+  else updateCountRow(id);
+  updateTotals();
+  return countNow(id);
+}
+
+function stepCount(id, delta) {
+  return setCount(id, countNow(id) + delta);
+}
+
+function reducedMotion() {
+  try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; }
+  catch { return false; }
+}
+
+function bumpCounter(input, denied = false) {
+  if (!input || reducedMotion() || typeof input.animate !== 'function') return;
+  const frames = denied
+    ? [
+        { transform: 'translateX(0)' },
+        { transform: 'translateX(-4px)' },
+        { transform: 'translateX(4px)' },
+        { transform: 'translateX(-3px)' },
+        { transform: 'translateX(0)' }
+      ]
+    : [
+        { transform: 'scale(1)' },
+        { transform: 'scale(1.16)' },
+        { transform: 'scale(1)' }
+      ];
+  input.animate(frames, { duration: denied ? 300 : 220, easing: 'ease-out' });
+}
+
+function doStep(id, delta) {
+  const before = countNow(id);
+  const row = el.wasteList.querySelector(`[data-id="${CSS.escape(String(id))}"]`);
+  const input = row?.querySelector('input[data-count]');
+  if (delta < 0 && before === 0) {
+    bumpCounter(input, true);
+    return;
+  }
+
+  stepCount(id, delta);
+  bumpCounter(input, false);
+  try { navigator.vibrate?.(8); } catch { /* ignore */ }
+}
+
+function onStepPointerDown(event) {
+  const button = event.target.closest('[data-step]');
+  if (!button || (event.pointerType === 'mouse' && event.button !== 0)) return;
+  const id = button.closest('[data-id]')?.dataset.id;
+  if (!id) return;
+
+  clearCounterHold();
+  const delta = Number(button.dataset.step) || 0;
+  counterHold = { button, id, delta, fired: false, releasedAt: 0 };
+  counterHold.timer = setTimeout(() => {
+    if (!counterHold) return;
+    counterHold.fired = true;
+    doStep(id, delta);
+    counterHold.interval = setInterval(() => doStep(id, delta), 110);
+  }, 430);
+}
+
+function releaseCounterHold() {
+  if (!counterHold) return;
+  clearTimeout(counterHold.timer);
+  clearInterval(counterHold.interval);
+  counterHold.releasedAt = performance.now();
+  if (!counterHold.fired) counterHold = null;
+}
+
+function clearCounterHold() {
+  if (!counterHold) return;
+  clearTimeout(counterHold.timer);
+  clearInterval(counterHold.interval);
+  counterHold = null;
+}
+
+function onStepClick(event) {
+  const button = event.target.closest('[data-step]');
+  if (!button) return;
+  const id = button.closest('[data-id]')?.dataset.id;
+  if (counterHold?.fired) {
+    // The long press already counted; ignore the click generated when it ends.
+    const recent = performance.now() - counterHold.releasedAt < 600;
+    clearCounterHold();
+    if (recent) return;
+  }
+  clearCounterHold();
+  if (id) doStep(id, Number(button.dataset.step) || 0);
 }
 
 function updateTotals() {
